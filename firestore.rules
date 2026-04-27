@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // ---------------------------------------------------------
+    // GLOBALS / PRIMITIVES
+    // ---------------------------------------------------------
+    function isSignedIn() { return request.auth != null; }
+    function isVerifiedEmail() { return isSignedIn(); /* No verification for simple email/pass auth in this test. */ }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    
+    function existing() { return resource.data; }
+    function incoming() { return request.resource.data; }
+    
+    function isValidId(id) { 
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
+    }
+
+    // ---------------------------------------------------------
+    // ENTITY VALIDATION HELPERS (Anti-Update-Gaps)
+    // ---------------------------------------------------------
+    function isValidUser(data) {
+      return data.keys().hasAll(['name', 'email', 'createdAt'])
+        && data.keys().size() <= 5
+        && data.name is string && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 200
+        && data.createdAt is number
+        && ( !('dailyRate' in data) || data.dailyRate is number );
+    }
+
+    function isValidDevice(data, userId) {
+      return data.keys().hasAll(['name', 'wattage', 'count', 'dailyUsageHours', 'createdAt', 'userId'])
+        && data.keys().size() <= 9
+        && data.name is string && data.name.size() <= 100
+        && data.wattage is number
+        && data.count is number && data.count > 0 && data.count <= 100
+        && data.dailyUsageHours is number && data.dailyUsageHours >= 0 && data.dailyUsageHours <= 24
+        && data.createdAt is number
+        && data.userId == userId
+        && ( !('brand' in data) || (data.brand is string && data.brand.size() <= 100) )
+        && ( !('type' in data) || (data.type is string && data.type.size() <= 100) );
+    }
+
+    function isValidTransaction(data, userId) {
+      return data.keys().hasAll(['type', 'amount', 'status', 'createdAt', 'userId'])
+        && data.keys().size() <= 6
+        && data.type is string && data.type.size() <= 50
+        && data.amount is number && data.amount > 0
+        && data.status is string && data.status.size() <= 50
+        && data.createdAt is number
+        && data.userId == userId;
+    }
+
+    function isValidNotification(data, userId) {
+      return data.keys().hasAll(['title', 'message', 'read', 'createdAt', 'userId'])
+        && data.keys().size() <= 6
+        && data.title is string && data.title.size() <= 100
+        && data.message is string && data.message.size() <= 500
+        && data.read is bool
+        && data.createdAt is number
+        && data.userId == userId;
+    }
+
+    // ---------------------------------------------------------
+    // PATHS AND CONTROLS
+    // ---------------------------------------------------------
+
+    // /users/{userId}
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false; // No blanket reads
+      allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
+                    && isValidUser(incoming())
+                    && incoming().createdAt == request.time.toMillis();
+      allow update: if isOwner(userId)
+                    && isValidUser(incoming())
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dailyRate'])
+                    && incoming().createdAt == existing().createdAt;
+      allow delete: if false;
+
+      // /users/{userId}/devices/{deviceId}
+      match /devices/{deviceId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
+                      && isValidDevice(incoming(), userId);
+        allow update: if isOwner(userId)
+                      && isValidDevice(incoming(), userId)
+                      && incoming().diff(existing()).affectedKeys().hasOnly([
+                          'name', 'brand', 'type', 'wattage', 'count', 'dailyUsageHours'
+                      ])
+                      && incoming().userId == existing().userId
+                      && incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && existing().userId == request.auth.uid;
+      }
+
+      // /users/{userId}/transactions/{transactionId}
+      match /transactions/{transactionId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
+                      && isValidTransaction(incoming(), userId);
+        allow update: if isOwner(userId)
+                      && isValidTransaction(incoming(), userId)
+                      && incoming().diff(existing()).affectedKeys().hasOnly(['status'])
+                      && incoming().userId == existing().userId
+                      && incoming().createdAt == existing().createdAt;
+        allow delete: if false; // Transactions shouldn't be deleted
+      }
+
+      // /users/{userId}/notifications/{notificationId}
+      match /notifications/{notificationId} {
+        allow get: if isOwner(userId);
+        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
+                      && isValidNotification(incoming(), userId);
+        allow update: if isOwner(userId)
+                      && isValidNotification(incoming(), userId)
+                      && incoming().diff(existing()).affectedKeys().hasOnly(['read'])
+                      && incoming().userId == existing().userId
+                      && incoming().createdAt == existing().createdAt;
+        allow delete: if isOwner(userId) && existing().userId == request.auth.uid;
+      }
+    }
+  }
+}

@@ -58,4 +58,4 @@ Distributed under the MIT License. See ⁠ LICENSE ⁠ for more information.
 
 ---
 
-<p align="center">Built with ⚡ by <a href="https://github.com/MichaelKTanzil">Michael Kelvin Tanzil & Team</a></p>
+<p align="center">Built with ⚡ by <a href="https://github.com/MichaelKTanzil">Team 6 Software Engineering</a></p>

@@ -1,18 +1,24 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import QRCode from 'react-qr-code';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errors';
 
 export default function Payment() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const toastTimerRef = useRef<number | null>(null);
+  const toastProgressTimerRef = useRef<number | null>(null);
+  const toastEnterTimerRef = useRef<number | null>(null);
+  const toastExitTimerRef = useRef<number | null>(null);
   const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastProgress, setToastProgress] = useState(0);
 
   const state = location.state as { tokenID: string; amount: number } | null;
 
@@ -24,6 +30,15 @@ export default function Payment() {
       </div>
     );
   }
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+    };
+  }, []);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val);
@@ -49,7 +64,23 @@ export default function Payment() {
         createdAt: Date.now(),
         userId: user.uid
       });
-      setSuccess(true);
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+
+      setShowToast(true);
+      setToastActive(false);
+      setToastProgress(100);
+      toastEnterTimerRef.current = window.setTimeout(() => setToastActive(true), 30);
+      toastProgressTimerRef.current = window.setTimeout(() => setToastProgress(0), 40);
+      toastTimerRef.current = window.setTimeout(() => {
+        setToastActive(false);
+        toastExitTimerRef.current = window.setTimeout(() => {
+          setShowToast(false);
+          navigate('/dashboard');
+        }, 220);
+      }, 1400);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/transactions`);
     } finally {
@@ -95,20 +126,25 @@ export default function Payment() {
         </button>
       </div>
 
-      {success && (
-        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-white rounded-[2.5rem] p-8 max-w-sm w-full text-center space-y-4 border-2 border-slate-200">
-             <div className="flex justify-center">
-                 <CheckCircle className="h-16 w-16 text-emerald-500" />
-             </div>
-             <h3 className="text-2xl font-bold text-emerald-500">Successful!</h3>
-             <p className="text-slate-600">Woohoo! You have added a Token Rp {formatCurrency(state.amount)}</p>
-             <button 
-               onClick={() => navigate('/dashboard')}
-               className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold py-4 rounded-2xl transition-colors mt-4 text-sm uppercase tracking-wide"
-             >
-               Continue
-             </button>
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-50 w-[320px] max-w-[90vw]">
+          <div
+            className={`overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-xl transition-all ${toastActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+            style={{ transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.21, 0.9, 0.24, 1)' }}
+          >
+            <div className="px-4 py-3">
+              <p className="text-sm font-semibold">Token berhasil ditambahkan</p>
+              <p className="text-xs text-slate-500">Mengalihkan ke dashboard...</p>
+            </div>
+            <div className="h-1 w-full bg-slate-100">
+              <div
+                className="h-full bg-indigo-500"
+                style={{
+                  width: `${toastProgress}%`,
+                  transition: 'width 1400ms linear'
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

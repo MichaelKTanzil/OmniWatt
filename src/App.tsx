@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { ThemeProvider } from './contexts/ThemeContext';
 import LandingPage from './pages/LandingPage';
 import AuthPage from './pages/AuthPage';
 import DashboardLayout from './layouts/DashboardLayout';
@@ -25,24 +26,26 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
-          <Route path="/login" element={<PublicRoute><AuthPage mode="login" /></PublicRoute>} />
-          <Route path="/signup" element={<PublicRoute><AuthPage mode="signup" /></PublicRoute>} />
-          
-          <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
-            <Route path="dashboard" element={<DashboardHome />} />
-            <Route path="devices" element={<DevicesLayout />}>
-              <Route index element={<DevicesList />} />
-              <Route path="add" element={<AddDevice />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            <Route path="/" element={<PublicRoute><LandingPage /></PublicRoute>} />
+            <Route path="/login" element={<PublicRoute><AuthPage mode="login" /></PublicRoute>} />
+            <Route path="/signup" element={<PublicRoute><AuthPage mode="signup" /></PublicRoute>} />
+            
+            <Route path="/" element={<PrivateRoute><DashboardLayout /></PrivateRoute>}>
+              <Route path="dashboard" element={<DashboardHome />} />
+              <Route path="devices" element={<DevicesLayout />}>
+                <Route index element={<DevicesList />} />
+                <Route path="add" element={<AddDevice />} />
+              </Route>
+              <Route path="billing" element={<Billing />} />
+              <Route path="payment" element={<Payment />} />
             </Route>
-            <Route path="billing" element={<Billing />} />
-            <Route path="payment" element={<Payment />} />
-          </Route>
-        </Routes>
-      </Router>
-    </AuthProvider>
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }

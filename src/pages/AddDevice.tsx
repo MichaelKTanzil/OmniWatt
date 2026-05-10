@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Upload } from 'lucide-react';
+import { ArrowLeft, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../lib/errors';
 import { GoogleGenAI } from '@google/genai';
 import { deviceTypesDB } from '../lib/devicesData';
@@ -14,9 +14,16 @@ export default function AddDevice() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const toastProgressTimerRef = useRef<number | null>(null);
+  const toastEnterTimerRef = useRef<number | null>(null);
+  const toastExitTimerRef = useRef<number | null>(null);
   
   const [step, setStep] = useState<Step>('METHOD_SELECT');
   const [loading, setLoading] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastProgress, setToastProgress] = useState(0);
   
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -30,6 +37,15 @@ export default function AddDevice() {
     count: '1',
     dailyUsageHours: ''
   });
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+    };
+  }, []);
 
   const goBack = () => {
     if (step === 'METHOD_SELECT') navigate('/devices');
@@ -58,7 +74,23 @@ export default function AddDevice() {
       };
       
       await addDoc(collection(db, 'users', user.uid, 'devices'), payload);
-      navigate('/devices');
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+
+      setShowToast(true);
+      setToastActive(false);
+      setToastProgress(100);
+      toastEnterTimerRef.current = window.setTimeout(() => setToastActive(true), 30);
+      toastProgressTimerRef.current = window.setTimeout(() => setToastProgress(0), 40);
+      toastTimerRef.current = window.setTimeout(() => {
+        setToastActive(false);
+        toastExitTimerRef.current = window.setTimeout(() => {
+          setShowToast(false);
+          navigate('/devices');
+        }, 220);
+      }, 1400);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/devices`);
     } finally {
@@ -133,10 +165,10 @@ export default function AddDevice() {
   return (
     <div className="max-w-[1024px] w-full mx-auto space-y-6">
       <div className="flex items-center gap-4 mb-4">
-        <button onClick={goBack} className="p-2 -ml-2 text-slate-800 hover:bg-slate-100 rounded-full transition-colors">
+        <button onClick={goBack} className="p-2 -ml-2 text-slate-800 dark:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors">
           <ArrowLeft className="h-6 w-6" />
         </button>
-        <h2 className="text-2xl font-bold text-slate-800">
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">
           {step === 'METHOD_SELECT' && 'Add Device'}
           {step === 'CATEGORY' && 'Pick A Device Category'}
           {step === 'BRAND' && 'Pick A Brand'}
@@ -145,11 +177,34 @@ export default function AddDevice() {
         </h2>
       </div>
 
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-50 w-[320px] max-w-[90vw]">
+          <div
+            className={`overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xl transition-all ${toastActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+            style={{ transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.21, 0.9, 0.24, 1)' }}
+          >
+            <div className="px-4 py-3">
+              <p className="text-sm font-semibold">Berhasil menambahkan device</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Mengalihkan ke daftar device...</p>
+            </div>
+            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full bg-indigo-500"
+                style={{
+                  width: `${toastProgress}%`,
+                  transition: 'width 1400ms linear'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {loading && (
         <div className="flex justify-center py-12">
           <div className="animate-pulse flex flex-col items-center gap-4">
              <div className="h-10 w-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-             <p className="text-slate-500">Processing...</p>
+             <p className="text-slate-500 dark:text-slate-400">Processing...</p>
           </div>
         </div>
       )}
@@ -186,18 +241,18 @@ export default function AddDevice() {
 
            <button 
              onClick={() => setStep('CATEGORY')}
-             className="bg-white border-2 text-left border-slate-200 p-8 rounded-[2.5rem] hover:border-indigo-600 hover:shadow-sm transition-all focus:outline-none flex flex-col justify-center"
+             className="bg-white dark:bg-slate-900 border-2 text-left border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] hover:border-indigo-600 hover:shadow-sm transition-all focus:outline-none flex flex-col justify-center"
            >
-             <h3 className="font-semibold text-lg text-slate-800">Browse Database</h3>
-             <p className="text-slate-500 text-sm mt-2">Select from our list of popular device models and brands.</p>
+             <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Browse Database</h3>
+             <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Select from our list of popular device models and brands.</p>
            </button>
 
            <button 
              onClick={() => setStep('MANUAL')}
-             className="bg-white border-2 text-left border-slate-200 p-8 rounded-[2.5rem] hover:border-indigo-600 hover:shadow-sm transition-all focus:outline-none flex flex-col justify-center"
+             className="bg-white dark:bg-slate-900 border-2 text-left border-slate-200 dark:border-slate-800 p-8 rounded-[2.5rem] hover:border-indigo-600 hover:shadow-sm transition-all focus:outline-none flex flex-col justify-center"
            >
-             <h3 className="font-semibold text-lg text-slate-800">Add Manually</h3>
-             <p className="text-slate-500 text-sm mt-2">Type in the custom details if you already know the specs.</p>
+             <h3 className="font-semibold text-lg text-slate-800 dark:text-slate-100">Add Manually</h3>
+             <p className="text-slate-500 dark:text-slate-400 text-sm mt-2">Type in the custom details if you already know the specs.</p>
            </button>
         </div>
       )}
@@ -213,7 +268,7 @@ export default function AddDevice() {
                 setFormData(prev => ({ ...prev, name: cat }));
                 setStep('BRAND');
               }}
-              className="bg-white border-2 border-slate-200 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800"
+              className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800 dark:text-slate-100"
             >
               {cat}
             </button>
@@ -224,7 +279,7 @@ export default function AddDevice() {
       {/* STEP: BRAND */}
       {step === 'BRAND' && !loading && (
         <div className="space-y-4">
-          <p className="text-slate-500 font-medium text-lg px-2">{selectedCategory}</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg px-2">{selectedCategory}</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {Object.keys((deviceTypesDB as any)[selectedCategory] || {}).map(brand => (
               <button 
@@ -234,7 +289,7 @@ export default function AddDevice() {
                   setFormData(prev => ({ ...prev, brand }));
                   setStep('MODEL');
                 }}
-                className="bg-white border-2 border-slate-200 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800"
+                className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800 dark:text-slate-100"
               >
                 {brand}
               </button>
@@ -246,7 +301,7 @@ export default function AddDevice() {
       {/* STEP: MODEL */}
       {step === 'MODEL' && !loading && (
         <div className="space-y-4">
-          <p className="text-slate-500 font-medium text-lg px-2">{selectedCategory} / {selectedBrand}</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg px-2">{selectedCategory} / {selectedBrand}</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {((deviceTypesDB as any)[selectedCategory]?.[selectedBrand] || []).map((modelObj: any) => (
               <button 
@@ -256,7 +311,7 @@ export default function AddDevice() {
                   setFormData(prev => ({ ...prev, type: modelObj.name, wattage: String(modelObj.wattage) }));
                   setStep('DETAILS');
                 }}
-                className="bg-white border-2 border-slate-200 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800 text-sm"
+                className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 p-6 rounded-[2.5rem] hover:border-indigo-600 hover:text-indigo-600 transition-all font-medium text-slate-800 dark:text-slate-100 text-sm"
               >
                 {modelObj.name}
               </button>
@@ -267,63 +322,63 @@ export default function AddDevice() {
 
       {/* STEP: DETAILS & MANUAL */}
       {(step === 'DETAILS' || step === 'MANUAL') && !loading && (
-        <form onSubmit={saveDevice} className="space-y-5 bg-white p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-200 md:max-w-2xl">
+        <form onSubmit={saveDevice} className="space-y-5 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800 md:max-w-2xl">
            {step === 'MANUAL' && (
              <>
                <div>
-                 <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Device Name*</label>
+                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Device Name*</label>
                  <input 
                    required 
                    type="text" 
                    value={formData.name}
                    onChange={e => setFormData({...formData, name: e.target.value})}
                    placeholder="Enter device name"
-                   className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                   className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                  />
                </div>
                <div>
-                 <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Brand Name</label>
+                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Brand Name</label>
                  <input 
                    type="text" 
                    value={formData.brand}
                    onChange={e => setFormData({...formData, brand: e.target.value})}
                    placeholder="Enter brand name"
-                   className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                   className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                  />
                </div>
                <div>
-                 <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Brand Type/Model</label>
+                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Brand Type/Model</label>
                  <input 
                    type="text" 
                    value={formData.type}
                    onChange={e => setFormData({...formData, type: e.target.value})}
                    placeholder="Enter brand type"
-                   className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                   className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                  />
                </div>
                <div>
-                 <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Wattage (Watt)*</label>
+                 <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Wattage (Watt)*</label>
                  <input 
                    required
                    type="number" 
                    value={formData.wattage}
                    onChange={e => setFormData({...formData, wattage: e.target.value})}
                    placeholder="Enter device wattage"
-                   className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+                   className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
                  />
                </div>
              </>
            )}
 
            {step === 'DETAILS' && (
-             <div className="p-4 bg-slate-50 rounded-2xl mb-4 border border-slate-200">
-               <p className="text-slate-800 font-bold">{formData.name} / {formData.brand} {formData.type}</p>
-               <p className="text-slate-500 text-sm mt-1">Wattage: <span className="font-bold text-indigo-600">{formData.wattage}W</span></p>
+             <div className="p-4 bg-slate-50 dark:bg-slate-950 rounded-2xl mb-4 border border-slate-200 dark:border-slate-800">
+               <p className="text-slate-800 dark:text-slate-100 font-bold">{formData.name} / {formData.brand} {formData.type}</p>
+               <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Wattage: <span className="font-bold text-indigo-600">{formData.wattage}W</span></p>
              </div>
            )}
 
            <div>
-             <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Device Count*</label>
+             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Device Count*</label>
              <input 
                required
                type="number" 
@@ -331,12 +386,12 @@ export default function AddDevice() {
                value={formData.count}
                onChange={e => setFormData({...formData, count: e.target.value})}
                placeholder="Enter number of device"
-               className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+               className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
              />
            </div>
            
            <div>
-             <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">Daily Usage (h)*</label>
+             <label className="block text-sm font-bold text-slate-700 dark:text-slate-300 mb-2 uppercase tracking-wide">Daily Usage (h)*</label>
              <input 
                required
                type="number" 
@@ -345,7 +400,7 @@ export default function AddDevice() {
                value={formData.dailyUsageHours}
                onChange={e => setFormData({...formData, dailyUsageHours: e.target.value})}
                placeholder="Enter daily usage in hours"
-               className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
+               className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:border-indigo-600 focus:ring-1 focus:ring-indigo-600"
              />
            </div>
 

@@ -44,15 +44,13 @@ Pastiin kalian sudah install _Node.js_ di mesin kalian.
     ⁠ env
     VITE_FIREBASE_API_KEY=your_api_key
 
-    # Tambahkan variabel lain di sini
-
-     ⁠
+# Variabel lain
 
 4.  _Run Development Server_
     ⁠ bash
     npm run dev
      ⁠
-    Buka ⁠ http://localhost:5173 ⁠ di browser lo.
+    Buka ⁠ http://localhost:5173 ⁠ di browser kalian.
 
 ## 📄 Lisensi
 

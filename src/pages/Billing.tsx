@@ -81,18 +81,18 @@ export default function Billing() {
   return (
     <div className="max-w-[1024px] w-full mx-auto space-y-6">
       <div className="flex items-center justify-between mb-8">
-        <h2 className="text-2xl font-bold text-slate-800">PLN Token</h2>
+        <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">PLN Token</h2>
       </div>
 
       <div className="space-y-6">
         <div>
-           <label className="block text-sm font-medium text-slate-700 mb-2">ID Pelanggan<span className="text-red-500">*</span></label>
+           <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">ID Pelanggan<span className="text-red-500">*</span></label>
            <input 
              type="text" 
              value={tokenID}
              onChange={e => setTokenID(e.target.value)}
              placeholder="Enter token ID"
-             className="w-full px-4 py-3 border-2 border-slate-200 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
+             className="w-full px-4 py-3 border-2 border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 rounded-2xl focus:outline-none focus:ring-1 focus:ring-indigo-600 focus:border-indigo-600"
            />
         </div>
 
@@ -104,12 +104,12 @@ export default function Billing() {
               className={cn(
                 "p-6 rounded-[2.5rem] border-2 text-center flex flex-col items-center justify-center transition-all",
                 amount === opt 
-                  ? "border-indigo-600 bg-indigo-50 ring-1 ring-indigo-600" 
-                  : "border-slate-200 bg-white hover:border-indigo-300 hover:shadow-sm"
+                  ? "border-indigo-600 bg-indigo-50 dark:bg-indigo-500/10 ring-1 ring-indigo-600" 
+                  : "border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-300 hover:shadow-sm"
               )}
             >
                <span className="text-xl font-bold text-indigo-600 mb-1">{formatCurrency(opt)}</span>
-               <span className="text-sm text-slate-500 font-medium">Rp {formatCurrency(opt)}</span>
+               <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Rp {formatCurrency(opt)}</span>
             </button>
           ))}
         </div>
@@ -121,31 +121,31 @@ export default function Billing() {
           Next Step
         </button>
 
-        <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border-2 border-slate-200">
+        <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-bold text-slate-800">History Saldo</h3>
-            <span className="text-xs text-slate-500">Terbaru</span>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">History Saldo</h3>
+            <span className="text-xs text-slate-500 dark:text-slate-400">Terbaru</span>
           </div>
 
           {historyLoading && (
-            <div className="text-sm text-slate-500">Memuat riwayat...</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">Memuat riwayat...</div>
           )}
 
           {!historyLoading && history.length === 0 && (
-            <div className="text-sm text-slate-500">Belum ada transaksi token.</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">Belum ada transaksi token.</div>
           )}
 
           {!historyLoading && history.length > 0 && (
             <div className="space-y-3">
               {history.map((item) => (
-                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 px-4 py-3">
+                <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
                   <div>
-                    <p className="text-sm font-semibold text-slate-800">Top Up Token PLN</p>
-                    <p className="text-xs text-slate-500">{formatDate(item.createdAt)}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">Top Up Token PLN</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{formatDate(item.createdAt)}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-indigo-600">Rp {formatCurrency(item.amount)}</p>
-                    <p className="text-xs text-slate-500">{item.status || 'Success'}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{item.status || 'Success'}</p>
                   </div>
                 </div>
               ))}

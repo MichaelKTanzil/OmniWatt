@@ -1,32 +1,32 @@
 <div align="center">
 
-# ⚡ OmniWatt
+# OmniWatt
 
 ### Smart Energy Tracking & Monitoring System
 
 </div>
 
-## 📌 Overview
+## Overview
 
-_OmniWatt_ adalah platform monitoring penggunaan listrik secara real-time yang dirancang untuk membantu pengguna memahami konsumsi energi mereka. Dengan integrasi data yang akurat, lo bisa memantau penggunaan Watt, estimasi biaya, dan riwayat pemakaian dalam satu dasbor yang intuitif.
+**OmniWatt** adalah platform monitoring penggunaan listrik secara real-time yang dirancang untuk membantu pengguna memahami konsumsi energi mereka. Dengan integrasi data yang akurat, pengguna bisa memantau penggunaan Watt, estimasi biaya, dan riwayat pemakaian dalam satu dasbor yang intuitif.
 
-## 🚀 Fitur Utama
+## Fitur Utama
 
 •⁠ ⁠*Live Monitoring*: Pantau penggunaan daya listrik detik demi detik.
 •⁠ ⁠*Cost Calculator*: Estimasi tagihan listrik bulanan berdasarkan pemakaian saat ini.
 •⁠ ⁠*Energy Analytics*: Grafik interaktif untuk melihat tren pemakaian harian dan mingguan.
 •⁠ ⁠*Cloud Sync*: Data tersinkronisasi aman dengan Firebase.
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 •⁠ ⁠*Frontend*: React.js + Vite
 •⁠ ⁠*Styling*: Tailwind CSS
 •⁠ ⁠*Database & Auth*: Firebase
 •⁠ ⁠*Icons*: Lucide React / Ant Design Icons
 
-## 💻 Cara Menjalankan Lokal
+## Cara Menjalankan Lokal
 
-Pastiin kalian sudah install _Node.js_ di mesin kalian.
+Pastiin sudah install _Node.js_ di mesin.
 
 1.  _Clone Repositori_
     ⁠ bash
@@ -52,7 +52,7 @@ Pastiin kalian sudah install _Node.js_ di mesin kalian.
      ⁠
     Buka ⁠ http://localhost:5173 ⁠ di browser kalian.
 
-## 📄 Lisensi
+## Lisensi
 
 Distributed under the MIT License. See ⁠ LICENSE ⁠ for more information.
 

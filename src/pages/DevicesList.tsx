@@ -43,7 +43,7 @@ export default function DevicesList() {
 
   const removeDevice = async (id: string) => {
     if (!user) return;
-    if (confirm("Are you sure you want to remove this device?")) {
+    if (confirm(`Are you sure you want to remove ${selectedDevice?.name || 'this device'}?`)) {
       try {
         await deleteDoc(doc(db, 'users', user.uid, 'devices', id));
         setSelectedDevice(null);

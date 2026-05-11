@@ -15,6 +15,15 @@ A brief description of what this project does and who it's for
 
 **OmniWatt** adalah platform monitoring penggunaan listrik secara real-time yang dirancang untuk membantu pengguna memahami konsumsi energi mereka. Dengan integrasi data yang akurat, pengguna bisa memantau penggunaan Watt, estimasi biaya, dan riwayat pemakaian dalam satu dasbor yang intuitif.
 
+## Problem
+
+Banyak pengguna kesulitan memantau penggunaan listrik secara transparan dan real-time, sehingga konsumsi energi sering tidak terkontrol dan tagihan bulanan menjadi sulit diprediksi.
+
+## Solution
+
+OmniWatt membantu pengguna memantau penggunaan daya listrik secara langsung, menganalisis pola konsumsi energi, serta memberikan estimasi biaya secara interaktif dalam satu dashboard.
+
+
 ## Fitur Utama
 
 •⁠ ⁠*Live Monitoring*: Pantau penggunaan daya listrik detik demi detik.

@@ -361,6 +361,7 @@ export default function AddDevice() {
                  <input 
                    required
                    type="number" 
+                   min="0"
                    value={formData.wattage}
                    onChange={e => setFormData({...formData, wattage: e.target.value})}
                    placeholder="Enter device wattage"

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Camera } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
@@ -14,16 +14,9 @@ export default function AddDevice() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const toastTimerRef = useRef<number | null>(null);
-  const toastProgressTimerRef = useRef<number | null>(null);
-  const toastEnterTimerRef = useRef<number | null>(null);
-  const toastExitTimerRef = useRef<number | null>(null);
   
   const [step, setStep] = useState<Step>('METHOD_SELECT');
   const [loading, setLoading] = useState(false);
-  const [showToast, setShowToast] = useState(false);
-  const [toastActive, setToastActive] = useState(false);
-  const [toastProgress, setToastProgress] = useState(0);
   
   const [selectedCategory, setSelectedCategory] = useState('');
   const [selectedBrand, setSelectedBrand] = useState('');
@@ -37,15 +30,6 @@ export default function AddDevice() {
     count: '1',
     dailyUsageHours: ''
   });
-
-  useEffect(() => {
-    return () => {
-      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
-      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
-      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
-    };
-  }, []);
 
   const goBack = () => {
     if (step === 'METHOD_SELECT') navigate('/devices');
@@ -74,23 +58,14 @@ export default function AddDevice() {
       };
       
       await addDoc(collection(db, 'users', user.uid, 'devices'), payload);
-      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
-      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
-      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
-      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
-
-      setShowToast(true);
-      setToastActive(false);
-      setToastProgress(100);
-      toastEnterTimerRef.current = window.setTimeout(() => setToastActive(true), 30);
-      toastProgressTimerRef.current = window.setTimeout(() => setToastProgress(0), 40);
-      toastTimerRef.current = window.setTimeout(() => {
-        setToastActive(false);
-        toastExitTimerRef.current = window.setTimeout(() => {
-          setShowToast(false);
-          navigate('/devices');
-        }, 220);
-      }, 1400);
+      navigate('/dashboard', {
+        state: {
+          toast: {
+            title: 'Berhasil menambahkan device',
+            message: 'Device tersimpan.'
+          }
+        }
+      });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, `users/${user.uid}/devices`);
     } finally {
@@ -176,29 +151,6 @@ export default function AddDevice() {
           {(step === 'DETAILS' || step === 'MANUAL') && 'Device Details'}
         </h2>
       </div>
-
-      {showToast && (
-        <div className="fixed bottom-6 right-6 z-50 w-[320px] max-w-[90vw]">
-          <div
-            className={`overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xl transition-all ${toastActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
-            style={{ transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.21, 0.9, 0.24, 1)' }}
-          >
-            <div className="px-4 py-3">
-              <p className="text-sm font-semibold">Berhasil menambahkan device</p>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Mengalihkan ke daftar device...</p>
-            </div>
-            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800">
-              <div
-                className="h-full bg-indigo-500"
-                style={{
-                  width: `${toastProgress}%`,
-                  transition: 'width 1400ms linear'
-                }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       {loading && (
         <div className="flex justify-center py-12">

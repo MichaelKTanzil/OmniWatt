@@ -21,6 +21,9 @@ export default function DevicesList() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [removeMode, setRemoveMode] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -41,16 +44,34 @@ export default function DevicesList() {
     return () => unsubscribe();
   }, [user]);
 
-  const removeDevice = async (id: string) => {
-    if (!user) return;
-    if (confirm(`Are you sure you want to remove ${selectedDevice?.name || 'this device'}?`)) {
-      try {
-        await deleteDoc(doc(db, 'users', user.uid, 'devices', id));
-        setSelectedDevice(null);
-      } catch (err) {
-        handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/devices/${id}`);
-      }
+  const removeDevices = async (ids: string[]) => {
+    if (!user || ids.length === 0) return;
+    try {
+      await Promise.all(ids.map((id) => deleteDoc(doc(db, 'users', user.uid, 'devices', id))));
+      setSelectedIds([]);
+      if (selectedDevice && ids.includes(selectedDevice.id)) setSelectedDevice(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/devices`);
     }
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.length === devices.length) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(devices.map((device) => device.id));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
+  };
+
+  const toggleRemoveMode = () => {
+    setRemoveMode((prev) => {
+      if (prev) setSelectedIds([]);
+      return !prev;
+    });
   };
 
   if (loading) return <div className="animate-pulse py-10 text-center text-slate-500 dark:text-slate-400">Loading Devices...</div>;
@@ -59,19 +80,40 @@ export default function DevicesList() {
     <div className="space-y-6 max-w-[1024px] mx-auto w-full">
       <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 -mt-2">
         <div className="flex items-center justify-between mb-8">
-          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Active Devices</h2>
-          <Link 
-            to="/devices/add" 
-            className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 px-5 rounded-2xl flex items-center gap-2 transition-colors"
-          >
-            <Plus className="h-4 w-4" /> Add Device
-          </Link>
+          <div className="flex items-center gap-3">
+            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Active Devices</h2>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleRemoveMode}
+              className={`font-semibold text-sm py-2.5 px-5 rounded-2xl flex items-center gap-2 transition-colors ${removeMode ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-50 dark:bg-red-500/10 text-red-600 hover:text-red-700'}`}
+            >
+              <Trash2 className="h-4 w-4" /> {removeMode ? 'Cancel Remove' : 'Remove Device'}
+            </button>
+            <Link 
+              to="/devices/add" 
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 px-5 rounded-2xl flex items-center gap-2 transition-colors"
+            >
+              <Plus className="h-4 w-4" /> Add Device
+            </Link>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-sm">
+                {removeMode && (
+                  <th className="px-6 py-4 font-semibold w-12">
+                    <input
+                      type="checkbox"
+                      checked={devices.length > 0 && selectedIds.length === devices.length}
+                      onChange={toggleSelectAll}
+                      className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600"
+                      aria-label="Select all devices"
+                    />
+                  </th>
+                )}
                 <th className="px-6 py-4 font-semibold">Device Name</th>
                 <th className="px-6 py-4 font-semibold">Wattage</th>
                 <th className="px-6 py-4 font-semibold">Count</th>
@@ -82,7 +124,7 @@ export default function DevicesList() {
             <tbody>
               {devices.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan={removeMode ? 6 : 5} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
                     No devices added yet. Click 'Add Device' to start tracking.
                   </td>
                 </tr>
@@ -93,6 +135,17 @@ export default function DevicesList() {
                     className={`cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors ${idx !== devices.length - 1 ? 'border-b border-slate-50 dark:border-slate-800' : ''}`}
                     onClick={() => setSelectedDevice(device)}
                   >
+                    {removeMode && (
+                      <td className="px-6 py-4" onClick={(event) => event.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(device.id)}
+                          onChange={() => toggleSelectOne(device.id)}
+                          className="h-4 w-4 rounded border-slate-300 dark:border-slate-700 text-indigo-600"
+                          aria-label={`Select ${device.name}`}
+                        />
+                      </td>
+                    )}
                     <td className="px-6 py-4 text-slate-800 dark:text-slate-100 font-medium">{device.name}</td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{device.wattage} Watt</td>
                     <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{device.count}</td>
@@ -106,7 +159,50 @@ export default function DevicesList() {
             </tbody>
           </table>
         </div>
+
+        {removeMode && (
+          <div className="flex items-center justify-between mt-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">{selectedIds.length} dipilih</p>
+            <button
+              onClick={() => setShowRemoveConfirm(true)}
+              className="text-white bg-red-500 hover:bg-red-600 font-semibold text-sm py-2 px-4 rounded-xl flex items-center gap-2"
+              disabled={selectedIds.length === 0}
+            >
+              <Trash2 className="h-4 w-4" /> Hapus
+            </button>
+          </div>
+        )}
       </div>
+
+      {showRemoveConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
+            <div className="p-6 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Remove devices?</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">
+                {selectedIds.length} device akan dihapus. Tindakan ini tidak bisa dibatalkan.
+              </p>
+            </div>
+            <div className="p-6 flex items-center gap-3 justify-end bg-slate-50 dark:bg-slate-950">
+              <button
+                onClick={() => setShowRemoveConfirm(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  await removeDevices(selectedIds);
+                  setShowRemoveConfirm(false);
+                }}
+                className="px-4 py-2 rounded-xl bg-red-500 hover:bg-red-600 text-white"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Device Details Modal */}
       {selectedDevice && (
@@ -155,7 +251,10 @@ export default function DevicesList() {
             </div>
             <div className="p-6 border-t border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
               <button 
-                onClick={() => removeDevice(selectedDevice.id)}
+                onClick={() => {
+                  setSelectedIds([selectedDevice.id]);
+                  setShowRemoveConfirm(true);
+                }}
                 className="w-full bg-red-500 hover:bg-red-600 text-white font-medium py-3 rounded-xl transition-colors"
               >
                 Remove Device

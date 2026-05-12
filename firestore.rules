@@ -31,11 +31,12 @@ service cloud.firestore {
     // ---------------------------------------------------------
     function isValidUser(data) {
       return data.keys().hasAll(['name', 'email', 'createdAt'])
-        && data.keys().size() <= 5
+        && data.keys().size() <= 6
         && data.name is string && data.name.size() <= 100
         && data.email is string && data.email.size() <= 200
         && data.createdAt is number
-        && ( !('dailyRate' in data) || data.dailyRate is number );
+        && ( !('dailyRate' in data) || data.dailyRate is number )
+        && ( !('timezone' in data) || (data.timezone is string && data.timezone.size() <= 5) );
     }
 
     function isValidDevice(data, userId) {
@@ -84,7 +85,7 @@ service cloud.firestore {
                     && isRecentTimestamp(incoming().createdAt);
       allow update: if isOwner(userId)
                     && isValidUser(incoming())
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dailyRate'])
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dailyRate', 'email', 'timezone'])
                     && incoming().createdAt == existing().createdAt;
       allow delete: if false;
 

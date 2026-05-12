@@ -11,6 +11,8 @@ import DevicesList from './pages/DevicesList';
 import AddDevice from './pages/AddDevice';
 import Billing from './pages/Billing';
 import Payment from './pages/Payment';
+import Profile from './pages/Profile';
+import Calculator from './pages/Calculator';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
@@ -42,6 +44,8 @@ export default function App() {
               </Route>
               <Route path="billing" element={<Billing />} />
               <Route path="payment" element={<Payment />} />
+              <Route path="profile" element={<Profile />} />
+              <Route path="calculator" element={<Calculator />} />
             </Route>
           </Routes>
         </Router>

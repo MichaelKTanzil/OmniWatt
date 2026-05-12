@@ -34,7 +34,8 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           name,
           email,
           createdAt: Date.now(),
-          dailyRate: 1444.70
+          dailyRate: 1444.70,
+          timezone: 'WIB'
         });
       } else {
         await signInWithEmailAndPassword(auth, email, password);

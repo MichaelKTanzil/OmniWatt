@@ -8,35 +8,49 @@ interface AuthContextType {
   loading: boolean;
   logout: () => Promise<void>;
   userData: UserData | null;
+  refreshUserData: (overrideUser?: User | null) => Promise<void>;
 }
 
 interface UserData {
   name: string;
   email: string;
   dailyRate?: number;
+  timezone?: 'WIB' | 'WITA' | 'WIT';
 }
 
-const AuthContext = createContext<AuthContextType>({ user: null, loading: true, logout: async () => {}, userData: null });
+const AuthContext = createContext<AuthContextType>({
+  user: null,
+  loading: true,
+  logout: async () => {},
+  userData: null,
+  refreshUserData: async () => {}
+});
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [userData, setUserData] = useState<UserData | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const refreshUserData = async (overrideUser?: User | null) => {
+    const targetUser = overrideUser ?? auth.currentUser;
+    if (!targetUser) {
+      setUserData(null);
+      return;
+    }
+
+    const docRef = doc(db, 'users', targetUser.uid);
+    const docSnap = await getDoc(docRef);
+    if (docSnap.exists()) {
+      setUserData(docSnap.data() as UserData);
+    } else {
+      setUserData({ name: targetUser.displayName || 'User', email: targetUser.email || '' });
+    }
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
-      if (user) {
-        const docRef = doc(db, 'users', user.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-          setUserData(docSnap.data() as UserData);
-        } else {
-          setUserData({ name: user.displayName || 'User', email: user.email || '' });
-        }
-      } else {
-        setUserData(null);
-      }
+      await refreshUserData(user);
       setLoading(false);
     });
 
@@ -48,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, logout, userData }}>
+    <AuthContext.Provider value={{ user, loading, logout, userData, refreshUserData }}>
       {!loading && children}
     </AuthContext.Provider>
   );

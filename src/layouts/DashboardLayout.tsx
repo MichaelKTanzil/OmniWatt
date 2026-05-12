@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
-import { Menu, Bell, User as UserIcon, X, Home, Smartphone, CreditCard, LogOut, Zap, Sun, Moon } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, Bell, User as UserIcon, X, Home, Smartphone, CreditCard, LogOut, Zap, Sun, Moon, Calculator } from 'lucide-react';
 import { collection, doc, limit, onSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -12,9 +12,19 @@ export default function DashboardLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastActive, setToastActive] = useState(false);
+  const [toastProgress, setToastProgress] = useState(0);
+  const [toastTitle, setToastTitle] = useState('');
+  const [toastMessage, setToastMessage] = useState('');
+  const toastTimerRef = useRef<number | null>(null);
+  const toastProgressTimerRef = useRef<number | null>(null);
+  const toastEnterTimerRef = useRef<number | null>(null);
+  const toastExitTimerRef = useRef<number | null>(null);
   const [notifications, setNotifications] = useState<Array<{ id: string; title: string; message: string; createdAt?: number; read?: boolean }>>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(true);
   const location = useLocation();
+  const navigate = useNavigate();
   const { user, userData, logout } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
@@ -52,6 +62,7 @@ export default function DashboardLayout() {
   const navLinks = [
     { name: 'Home', path: '/dashboard', icon: Home },
     { name: 'Devices', path: '/devices', icon: Smartphone },
+    { name: 'Calculator', path: '/calculator', icon: Calculator },
     { name: 'Billing', path: '/billing', icon: CreditCard },
   ];
 
@@ -59,6 +70,7 @@ export default function DashboardLayout() {
     if (location.pathname === '/dashboard') return 'Home';
     if (location.pathname.startsWith('/devices')) return 'Devices';
     if (location.pathname.startsWith('/billing') || location.pathname.startsWith('/payment')) return 'Billing';
+    if (location.pathname.startsWith('/calculator')) return 'Calculator';
     return '';
   };
 
@@ -131,6 +143,41 @@ export default function DashboardLayout() {
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [isNotificationOpen]);
+
+  useEffect(() => {
+    const toastState = (location.state as { toast?: { title?: string; message?: string } } | null)?.toast;
+    if (!toastState?.title) return;
+
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+    if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+    if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+
+    setToastTitle(toastState.title);
+    setToastMessage(toastState.message || '');
+    setShowToast(true);
+    setToastActive(false);
+    setToastProgress(100);
+    toastEnterTimerRef.current = window.setTimeout(() => setToastActive(true), 30);
+    toastProgressTimerRef.current = window.setTimeout(() => setToastProgress(0), 40);
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastActive(false);
+      toastExitTimerRef.current = window.setTimeout(() => {
+        setShowToast(false);
+      }, 220);
+    }, 1400);
+
+    navigate(location.pathname, { replace: true, state: {} });
+  }, [location.pathname, location.state, navigate]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+      if (toastProgressTimerRef.current) window.clearTimeout(toastProgressTimerRef.current);
+      if (toastEnterTimerRef.current) window.clearTimeout(toastEnterTimerRef.current);
+      if (toastExitTimerRef.current) window.clearTimeout(toastExitTimerRef.current);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col md:flex-row">
@@ -207,6 +254,12 @@ export default function DashboardLayout() {
                   <p className="font-semibold text-slate-800 dark:text-slate-100">{userData?.name || 'User'}</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{userData?.email || ''}</p>
                 </div>
+                <Link
+                  to="/profile"
+                  className="w-full text-left px-4 py-3 text-slate-600 dark:text-slate-300 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <UserIcon className="h-5 w-5" /> Edit Profile
+                </Link>
                 <button onClick={logout} className="w-full text-left px-4 py-3 text-red-500 flex items-center gap-3 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors">
                   <LogOut className="h-5 w-5" /> Logout
                 </button>
@@ -346,6 +399,12 @@ export default function DashboardLayout() {
                   <p className="font-semibold text-slate-800 dark:text-slate-100">{userData?.name || 'User'}</p>
                   <p className="text-sm text-slate-500 dark:text-slate-400 truncate">{userData?.email || ''}</p>
                 </div>
+                <Link
+                  to="/profile"
+                  className="w-full text-left px-4 py-3 text-slate-600 dark:text-slate-300 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                >
+                  <UserIcon className="h-5 w-5" /> Edit Profile
+                </Link>
                 <button onClick={logout} className="w-full text-left px-4 py-3 text-red-500 flex items-center gap-3 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors rounded-b-xl">
                   <LogOut className="h-5 w-5" /> Logout
                 </button>
@@ -358,6 +417,29 @@ export default function DashboardLayout() {
           <Outlet />
         </div>
       </main>
+
+      {showToast && (
+        <div className="fixed bottom-6 right-6 z-50 w-[320px] max-w-[90vw]">
+          <div
+            className={`overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-xl transition-all ${toastActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+            style={{ transitionDuration: '320ms', transitionTimingFunction: 'cubic-bezier(0.21, 0.9, 0.24, 1)' }}
+          >
+            <div className="px-4 py-3">
+              <p className="text-sm font-semibold">{toastTitle}</p>
+              {toastMessage && <p className="text-xs text-slate-500 dark:text-slate-400">{toastMessage}</p>}
+            </div>
+            <div className="h-1 w-full bg-slate-100 dark:bg-slate-800">
+              <div
+                className="h-full bg-indigo-500"
+                style={{
+                  width: `${toastProgress}%`,
+                  transition: 'width 1400ms linear'
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

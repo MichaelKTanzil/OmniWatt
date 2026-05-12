@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { collection, limit, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../lib/firebase';
 import { handleFirestoreError, OperationType } from '../lib/errors';
@@ -13,6 +13,7 @@ export default function Billing() {
   const [amount, setAmount] = useState<number | null>(null);
   const [historyLoading, setHistoryLoading] = useState(true);
   const [history, setHistory] = useState<Array<{ id: string; amount: number; createdAt?: number; status?: string }>>([]);
+  const [historySort, setHistorySort] = useState<'latest' | 'oldest'>('latest');
   
   const tokenOptions = [
     20000, 50000, 100000, 200000, 500000, 1000000
@@ -44,8 +45,7 @@ export default function Billing() {
     const historyQuery = query(
       collection(db, 'users', user.uid, 'transactions'),
       where('type', '==', 'PLN Token'),
-      orderBy('createdAt', 'desc'),
-      limit(6)
+      orderBy('createdAt', historySort === 'latest' ? 'desc' : 'asc')
     );
 
     const unsubscribe = onSnapshot(
@@ -70,7 +70,7 @@ export default function Billing() {
     );
 
     return () => unsubscribe();
-  }, [user]);
+  }, [user, historySort]);
 
   const handleNext = () => {
     if (!tokenID) return alert('Please enter ID Pelanggan');
@@ -124,7 +124,14 @@ export default function Billing() {
         <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">History Saldo</h3>
-            <span className="text-xs text-slate-500 dark:text-slate-400">Terbaru</span>
+            <select
+              value={historySort}
+              onChange={(event) => setHistorySort(event.target.value as 'latest' | 'oldest')}
+              className="text-xs font-semibold text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2"
+            >
+              <option value="latest">Terbaru</option>
+              <option value="oldest">Terlama</option>
+            </select>
           </div>
 
           {historyLoading && (
@@ -136,7 +143,7 @@ export default function Billing() {
           )}
 
           {!historyLoading && history.length > 0 && (
-            <div className="space-y-3">
+            <div className="history-scroll space-y-3 max-h-[520px] overflow-y-auto pr-1">
               {history.map((item) => (
                 <div key={item.id} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
                   <div>

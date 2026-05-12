@@ -15,6 +15,12 @@ service cloud.firestore {
     
     function existing() { return resource.data; }
     function incoming() { return request.resource.data; }
+
+    function isRecentTimestamp(value) {
+      return value is number
+        && value >= (request.time.toMillis() - 300000)
+        && value <= (request.time.toMillis() + 300000);
+    }
     
     function isValidId(id) { 
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); 
@@ -75,7 +81,7 @@ service cloud.firestore {
       allow list: if false; // No blanket reads
       allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
                     && isValidUser(incoming())
-                    && incoming().createdAt == request.time.toMillis();
+                    && isRecentTimestamp(incoming().createdAt);
       allow update: if isOwner(userId)
                     && isValidUser(incoming())
                     && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'dailyRate'])
@@ -85,9 +91,10 @@ service cloud.firestore {
       // /users/{userId}/devices/{deviceId}
       match /devices/{deviceId} {
         allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow list: if isOwner(userId);
         allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
-                      && isValidDevice(incoming(), userId);
+                      && isValidDevice(incoming(), userId)
+                      && isRecentTimestamp(incoming().createdAt);
         allow update: if isOwner(userId)
                       && isValidDevice(incoming(), userId)
                       && incoming().diff(existing()).affectedKeys().hasOnly([
@@ -101,9 +108,10 @@ service cloud.firestore {
       // /users/{userId}/transactions/{transactionId}
       match /transactions/{transactionId} {
         allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow list: if isOwner(userId);
         allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
-                      && isValidTransaction(incoming(), userId);
+                      && isValidTransaction(incoming(), userId)
+                      && isRecentTimestamp(incoming().createdAt);
         allow update: if isOwner(userId)
                       && isValidTransaction(incoming(), userId)
                       && incoming().diff(existing()).affectedKeys().hasOnly(['status'])
@@ -115,9 +123,10 @@ service cloud.firestore {
       // /users/{userId}/notifications/{notificationId}
       match /notifications/{notificationId} {
         allow get: if isOwner(userId);
-        allow list: if isOwner(userId) && existing().userId == request.auth.uid;
+        allow list: if isOwner(userId);
         allow create: if isOwner(isValidId(userId) ? userId : 'invalid')
-                      && isValidNotification(incoming(), userId);
+                      && isValidNotification(incoming(), userId)
+                      && isRecentTimestamp(incoming().createdAt);
         allow update: if isOwner(userId)
                       && isValidNotification(incoming(), userId)
                       && incoming().diff(existing()).affectedKeys().hasOnly(['read'])

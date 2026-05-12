@@ -63,7 +63,7 @@ export default function AuthPage({ mode }: { mode: 'login' | 'signup' }) {
           <Zap className="h-8 w-8 text-slate-800 dark:text-slate-100" />
           <Zap className="h-8 w-8 text-indigo-600 absolute top-0 left-1 opacity-80" />
         </div>
-        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-900">
+        <h1 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-800 to-slate-900 dark:from-slate-100 dark:to-slate-300">
           OmniWatt
         </h1>
       </div>

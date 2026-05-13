@@ -53,7 +53,7 @@ Pastiin sudah install _Node.js_ di mesin.
     ⁠ env
     VITE_FIREBASE_API_KEY=your_api_key
 
-# Variabel lain
+## Variabel lain
 
 4.  _Run Development Server_
     ⁠ bash

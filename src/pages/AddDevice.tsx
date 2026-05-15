@@ -131,10 +131,15 @@ export default function AddDevice() {
       }
     } catch (error: any) {
       console.error('Error scanning device:', error);
-      const msg = error?.message || error?.toString() || 'Unknown error';
-      alert(`Scan failed: ${msg}`);
+      let msg = 'Unknown error';
+      if (error?.status) msg = `HTTP ${error.status}: ${error.statusText || ''}`;
+      if (error?.message) msg += ` - ${error.message}`;
+      if (error?.errorDetails) msg += `\n${JSON.stringify(error.errorDetails)}`;
+      if (!error?.status && !error?.message) msg = JSON.stringify(error, null, 2);
+      alert(`Scan failed:\n${msg}`);
     } finally {
       setLoading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -209,9 +214,9 @@ export default function AddDevice() {
                  <input 
                    type="file" 
                    accept="image/*"
+                   capture="environment"
                    ref={fileInputRef}
                    onChange={handleScan}
-                   onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                  />
                </label>

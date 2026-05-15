@@ -78,33 +78,31 @@ export default function DevicesList() {
 
   return (
     <div className="space-y-6 max-w-[1024px] mx-auto w-full">
-      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-8 -mt-2">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Active Devices</h2>
-          </div>
-          <div className="flex items-center gap-3">
+      <div className="bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2.5rem] p-4 sm:p-8 -mt-2">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
+          <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Active Devices</h2>
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={toggleRemoveMode}
-              className={`font-semibold text-sm py-2.5 px-5 rounded-2xl flex items-center gap-2 transition-colors ${removeMode ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-50 dark:bg-red-500/10 text-red-600 hover:text-red-700'}`}
+              className={`font-semibold text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-5 rounded-2xl flex items-center gap-1.5 sm:gap-2 transition-colors ${removeMode ? 'bg-red-600 text-white hover:bg-red-700' : 'bg-red-50 dark:bg-red-500/10 text-red-600 hover:text-red-700'}`}
             >
-              <Trash2 className="h-4 w-4" /> {removeMode ? 'Cancel Remove' : 'Remove Device'}
+              <Trash2 className="h-4 w-4" /> <span className="hidden sm:inline">{removeMode ? 'Cancel Remove' : 'Remove Device'}</span><span className="sm:hidden">{removeMode ? 'Cancel' : 'Remove'}</span>
             </button>
             <Link 
               to="/devices/add" 
-              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm py-2.5 px-5 rounded-2xl flex items-center gap-2 transition-colors"
+              className="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs sm:text-sm py-2 sm:py-2.5 px-3 sm:px-5 rounded-2xl flex items-center gap-1.5 sm:gap-2 transition-colors"
             >
-              <Plus className="h-4 w-4" /> Add Device
+              <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add Device</span><span className="sm:hidden">Add</span>
             </Link>
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left">
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <table className="w-full text-left min-w-[480px]">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-sm">
+              <tr className="border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-300 text-xs sm:text-sm">
                 {removeMode && (
-                  <th className="px-6 py-4 font-semibold w-12">
+                  <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold w-10 sm:w-12">
                     <input
                       type="checkbox"
                       checked={devices.length > 0 && selectedIds.length === devices.length}
@@ -114,17 +112,17 @@ export default function DevicesList() {
                     />
                   </th>
                 )}
-                <th className="px-6 py-4 font-semibold">Device Name</th>
-                <th className="px-6 py-4 font-semibold">Wattage</th>
-                <th className="px-6 py-4 font-semibold">Count</th>
-                <th className="px-6 py-4 font-semibold">Daily Usage (h)</th>
-                <th className="px-6 py-4 font-semibold w-16"></th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold">Device Name</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold">Wattage</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold">Count</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold hidden sm:table-cell">Daily Usage (h)</th>
+                <th className="px-3 sm:px-6 py-3 sm:py-4 font-semibold w-10 sm:w-16"></th>
               </tr>
             </thead>
             <tbody>
               {devices.length === 0 ? (
                 <tr>
-                  <td colSpan={removeMode ? 6 : 5} className="px-6 py-10 text-center text-slate-500 dark:text-slate-400">
+                  <td colSpan={removeMode ? 6 : 5} className="px-3 sm:px-6 py-10 text-center text-slate-500 dark:text-slate-400">
                     No devices added yet. Click 'Add Device' to start tracking.
                   </td>
                 </tr>
@@ -136,7 +134,7 @@ export default function DevicesList() {
                     onClick={() => setSelectedDevice(device)}
                   >
                     {removeMode && (
-                      <td className="px-6 py-4" onClick={(event) => event.stopPropagation()}>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4" onClick={(event) => event.stopPropagation()}>
                         <input
                           type="checkbox"
                           checked={selectedIds.includes(device.id)}
@@ -146,11 +144,11 @@ export default function DevicesList() {
                         />
                       </td>
                     )}
-                    <td className="px-6 py-4 text-slate-800 dark:text-slate-100 font-medium">{device.name}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{device.wattage} Watt</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{device.count}</td>
-                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{device.dailyUsageHours}</td>
-                    <td className="px-6 py-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-slate-800 dark:text-slate-100 font-medium">{device.name}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-slate-600 dark:text-slate-300">{device.wattage} W</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-slate-600 dark:text-slate-300">{device.count}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-slate-600 dark:text-slate-300 hidden sm:table-cell">{device.dailyUsageHours}</td>
+                    <td className="px-3 sm:px-6 py-3 sm:py-4 text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300">
                       <Edit2 className="h-4 w-4" />
                     </td>
                   </tr>
@@ -175,7 +173,7 @@ export default function DevicesList() {
       </div>
 
       {showRemoveConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[60]">
           <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-xl w-full max-w-sm overflow-hidden">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800">
               <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Remove devices?</h3>

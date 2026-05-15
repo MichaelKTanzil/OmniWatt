@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { Menu, Bell, User as UserIcon, X, Home, Smartphone, CreditCard, LogOut, Zap, Sun, Moon, Calculator } from 'lucide-react';
+import { Menu, Bell, User as UserIcon, X, Home, Smartphone, CreditCard, LogOut, Zap, Sun, Moon } from 'lucide-react';
 import { collection, doc, limit, onSnapshot, orderBy, query, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -62,7 +62,6 @@ export default function DashboardLayout() {
   const navLinks = [
     { name: 'Home', path: '/dashboard', icon: Home },
     { name: 'Devices', path: '/devices', icon: Smartphone },
-    { name: 'Calculator', path: '/calculator', icon: Calculator },
     { name: 'Billing', path: '/billing', icon: CreditCard },
   ];
 
@@ -70,7 +69,6 @@ export default function DashboardLayout() {
     if (location.pathname === '/dashboard') return 'Home';
     if (location.pathname.startsWith('/devices')) return 'Devices';
     if (location.pathname.startsWith('/billing') || location.pathname.startsWith('/payment')) return 'Billing';
-    if (location.pathname.startsWith('/calculator')) return 'Calculator';
     return '';
   };
 

@@ -12,7 +12,7 @@ type Step = 'METHOD_SELECT' | 'CATEGORY' | 'BRAND' | 'MODEL' | 'DETAILS' | 'MANU
 
 export default function AddDevice() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, userData } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [step, setStep] = useState<Step>('METHOD_SELECT');
@@ -129,12 +129,42 @@ export default function AddDevice() {
         });
         setStep('MANUAL');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error scanning device:', error);
-      alert('Failed to scan device. Please add manually.');
+      const msg = error?.message || error?.toString() || 'Unknown error';
+      alert(`Scan failed: ${msg}`);
     } finally {
       setLoading(false);
     }
+  };
+
+  const rate = userData?.dailyRate || 1444.7;
+  const wattage = Number(formData.wattage) || 0;
+  const count = Number(formData.count) || 0;
+  const dailyUsageHours = Number(formData.dailyUsageHours) || 0;
+  const kwhPerHour = (wattage * count) / 1000;
+  const kwhPerDay = kwhPerHour * dailyUsageHours;
+  const kwhPerMonth = kwhPerDay * 30;
+  const kwhPerYear = kwhPerDay * 365;
+  const costSummary = [
+    { label: 'Per Jam', kwh: kwhPerHour, cost: kwhPerHour * rate },
+    { label: 'Per Hari', kwh: kwhPerDay, cost: kwhPerDay * rate },
+    { label: 'Per Bulan', kwh: kwhPerMonth, cost: kwhPerMonth * rate },
+    { label: 'Per Tahun', kwh: kwhPerYear, cost: kwhPerYear * rate },
+  ];
+
+  const formatCurrency = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(val);
+  };
+
+  const formatNumber = (val: number) => {
+    return new Intl.NumberFormat('id-ID', {
+      minimumFractionDigits: 3,
+      maximumFractionDigits: 3,
+    }).format(val);
   };
 
   return (
@@ -171,21 +201,20 @@ export default function AddDevice() {
                <p className="text-indigo-200 text-sm leading-relaxed mb-6">Instant detection of model and wattage using Computer Vision.</p>
              </div>
              <div className="relative z-10 w-full">
-               <button 
-                 onClick={() => fileInputRef.current?.click()}
-                 className="w-full border-2 border-dashed border-indigo-400/50 rounded-3xl p-6 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors"
-               >
-                 <Camera className="w-12 h-12 text-indigo-300 mb-3" />
-                 <span className="text-sm font-semibold">Launch Vision Scanner</span>
-               </button>
-               <input 
-                 type="file" 
-                 accept="image/*"
-                 capture="environment"
-                 className="hidden" 
-                 ref={fileInputRef}
-                 onChange={handleScan}
-               />
+               <label className="block w-full cursor-pointer">
+                 <div className="w-full border-2 border-dashed border-indigo-400/50 rounded-3xl p-6 flex flex-col items-center justify-center bg-white/5 backdrop-blur-sm hover:bg-white/10 transition-colors">
+                   <Camera className="w-12 h-12 text-indigo-300 mb-3" />
+                   <span className="text-sm font-semibold">Launch Vision Scanner</span>
+                 </div>
+                 <input 
+                   type="file" 
+                   accept="image/*"
+                   ref={fileInputRef}
+                   onChange={handleScan}
+                   onClick={(e) => { (e.target as HTMLInputElement).value = ''; }}
+                   style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
+                 />
+               </label>
              </div>
              {/* Decorative Elements */}
              <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
@@ -274,7 +303,8 @@ export default function AddDevice() {
 
       {/* STEP: DETAILS & MANUAL */}
       {(step === 'DETAILS' || step === 'MANUAL') && !loading && (
-        <form onSubmit={saveDevice} className="space-y-5 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800 md:max-w-2xl">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form onSubmit={saveDevice} className="space-y-5 bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800">
            {step === 'MANUAL' && (
              <>
                <div>
@@ -365,6 +395,26 @@ export default function AddDevice() {
              Save Device
            </button>
         </form>
+
+        <div className="bg-white dark:bg-slate-900 p-8 rounded-[2.5rem] shadow-sm border-2 border-slate-200 dark:border-slate-800 space-y-5 h-fit">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100">Cost Estimation</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">Tarif: Rp {formatCurrency(rate)} / kWh</p>
+          </div>
+
+          <div className="space-y-3">
+            {costSummary.map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 px-4 py-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.label}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{formatNumber(item.kwh)} kWh</p>
+                </div>
+                <p className="text-sm font-bold text-indigo-600">Rp {formatCurrency(item.cost)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+        </div>
       )}
     </div>
   );

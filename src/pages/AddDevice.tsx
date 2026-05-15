@@ -73,6 +73,40 @@ export default function AddDevice() {
     }
   };
 
+  const compressImage = (file: File, maxSize = 1024, quality = 0.8): Promise<{ base64: string; mimeType: string }> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject(new Error('Canvas not supported'));
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        const base64 = dataUrl.split(',')[1];
+        resolve({ base64, mimeType: 'image/jpeg' });
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+      img.src = url;
+    });
+  };
+
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
@@ -81,12 +115,8 @@ export default function AddDevice() {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
       
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
-        reader.onload = () => resolve((reader.result as string).split(',')[1]);
-      });
-      reader.readAsDataURL(file);
-      const base64Data = await base64Promise;
+      // Compress image for mobile compatibility (large camera photos can fail)
+      const { base64, mimeType } = await compressImage(file);
 
       const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash',
@@ -96,8 +126,8 @@ export default function AddDevice() {
             parts: [
               {
                 inlineData: {
-                  mimeType: file.type,
-                  data: base64Data
+                  mimeType,
+                  data: base64
                 }
               },
               {
@@ -220,6 +250,7 @@ export default function AddDevice() {
                    style={{ position: 'absolute', opacity: 0, width: 0, height: 0, overflow: 'hidden' }}
                  />
                </label>
+               <p className="text-indigo-300/60 text-[11px] text-center mt-2">Use Chrome for best experience. Firefox may block the file picker.</p>
              </div>
              {/* Decorative Elements */}
              <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>

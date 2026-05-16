@@ -163,14 +163,12 @@ export default function AddDevice() {
 
     setLoading(true);
     try {
-      const base64Data = await new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve((reader.result as string).split(",")[1]);
-        reader.readAsDataURL(file);
-      });
+      // 1. Manfaatin fungsi compressImage yang udah kamu bikin biar size foto gak bengkak
+      const { base64, mimeType } = await compressImage(file);
 
+      // 2. Gunakan endpoint model yang stabil. Pakai gemini-1.5-flash karena disupport penuh di v1beta
       const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -178,22 +176,38 @@ export default function AddDevice() {
             contents: [
               {
                 parts: [
-                  { inline_data: { mime_type: file.type, data: base64Data } },
+                  // PERBAIKAN: Ubah inline_data jadi inlineData, dan mime_type jadi mimeType (wajib camelCase)
+                  {
+                    inlineData: {
+                      mimeType: mimeType,
+                      data: base64,
+                    },
+                  },
                   {
                     text: `Identify this electronic device. Reply with a JSON object strictly containing: {"name": "Short general name (e.g. TV, Laptop)", "brand": "Brand if visible, else empty", "type": "Model/Type if visible, else empty", "wattage": estimated wattage in numbers}`,
                   },
                 ],
               },
             ],
-            generationConfig: { responseMimeType: "application/json" },
+            // PERBAIKAN: Bungkus di dalam objek 'config' atau 'generationConfig' sesuai standar REST API v1beta
+            generationConfig: {
+              responseMimeType: "application/json",
+            },
           }),
         },
       );
 
+      if (!response.ok) {
+        throw new Error(`API error with status: ${response.status}`);
+      }
+
       const data = await response.json();
+
+      // Ambil teks JSON dari response Gemini
       const text = data.candidates[0].content.parts[0].text;
       const result = JSON.parse(text);
 
+      // Set data hasil scan ke form
       setFormData({
         name: result.name || "",
         brand: result.brand || "",

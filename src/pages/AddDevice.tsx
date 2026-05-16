@@ -238,6 +238,7 @@ export default function AddDevice() {
     { label: "Per Tahun", kwh: kwhPerYear, cost: kwhPerYear * rate },
   ];
 
+  // For Currency
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: 0,

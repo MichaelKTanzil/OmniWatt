@@ -163,58 +163,46 @@ export default function AddDevice() {
 
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({
-        apiKey: process.env.GEMINI_API_KEY as string,
-      });
-
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve) => {
+      const base64Data = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
         reader.onload = () => resolve((reader.result as string).split(",")[1]);
+        reader.readAsDataURL(file);
       });
-      reader.readAsDataURL(file);
-      const base64Data = await base64Promise;
 
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [
               {
-                inlineData: {
-                  mimeType: file.type,
-                  data: base64Data,
-                },
-              },
-              {
-                text: `Identify this electronic device. Reply with a JSON object strictly containing:
+                parts: [
+                  { inline_data: { mime_type: file.type, data: base64Data } },
                   {
-                    "name": "Short general name (e.g. TV, Laptop)",
-                    "brand": "Brand if visible, else empty",
-                    "type": "Model/Type if visible, else empty",
-                    "wattage": estimated wattage in numbers
-                  }`,
+                    text: `Identify this electronic device. Reply with a JSON object strictly containing: {"name": "Short general name (e.g. TV, Laptop)", "brand": "Brand if visible, else empty", "type": "Model/Type if visible, else empty", "wattage": estimated wattage in numbers}`,
+                  },
+                ],
               },
             ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
+            generationConfig: { responseMimeType: "application/json" },
+          }),
         },
-      });
+      );
 
-      if (response.text) {
-        const result = JSON.parse(response.text);
-        setFormData({
-          name: result.name || "",
-          brand: result.brand || "",
-          type: result.type || "",
-          wattage: String(result.wattage || ""),
-          count: "1",
-          dailyUsageHours: "",
-        });
-        setStep("MANUAL");
-      }
+      const data = await response.json();
+      const text = data.candidates[0].content.parts[0].text;
+      const result = JSON.parse(text);
+
+      setFormData({
+        name: result.name || "",
+        brand: result.brand || "",
+        type: result.type || "",
+        wattage: String(result.wattage || ""),
+        count: "1",
+        dailyUsageHours: "",
+      });
+      setStep("MANUAL");
     } catch (error) {
       console.error("Error scanning device:", error);
       alert("Failed to scan device. Please add manually.");

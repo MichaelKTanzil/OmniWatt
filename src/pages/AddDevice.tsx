@@ -73,7 +73,7 @@ export default function AddDevice() {
     }
   };
 
-  const compressImage = (file: File, maxSize = 1024, quality = 0.8): Promise<{ base64: string; mimeType: string }> => {
+  const compressImage = (file: File, maxSize = 768, quality = 0.7): Promise<{ base64: string; mimeType: string }> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
       const url = URL.createObjectURL(file);
@@ -97,6 +97,7 @@ export default function AddDevice() {
         ctx.drawImage(img, 0, 0, width, height);
         const dataUrl = canvas.toDataURL('image/jpeg', quality);
         const base64 = dataUrl.split(',')[1];
+        console.log(`[Scanner] Compressed: ${width}x${height}, ~${Math.round(base64.length / 1024)}KB base64`);
         resolve({ base64, mimeType: 'image/jpeg' });
       };
       img.onerror = () => {
@@ -107,47 +108,67 @@ export default function AddDevice() {
     });
   };
 
+  const callGemini = async (ai: any, model: string, base64: string, mimeType: string) => {
+    return await ai.models.generateContent({
+      model,
+      contents: [
+        {
+          role: 'user',
+          parts: [
+            {
+              inlineData: { mimeType, data: base64 }
+            },
+            {
+              text: `Identify this electronic device. Reply with a JSON object strictly containing:
+                {
+                  "name": "Short general name (e.g. TV, Laptop)",
+                  "brand": "Brand if visible, else empty",
+                  "type": "Model/Type if visible, else empty",
+                  "wattage": estimated wattage in numbers
+                }`
+            }
+          ]
+        }
+      ],
+      config: {
+        responseMimeType: "application/json",
+      }
+    });
+  };
+
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
     
+    console.log(`[Scanner] Original file: ${file.name}, ${(file.size / 1024).toFixed(0)}KB, type: ${file.type}`);
     setLoading(true);
     try {
-      const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY as string });
+      const apiKey = process.env.GEMINI_API_KEY as string;
+      console.log(`[Scanner] API key present: ${!!apiKey}, length: ${apiKey?.length}`);
+      const ai = new GoogleGenAI({ apiKey });
       
       // Compress image for mobile compatibility (large camera photos can fail)
       const { base64, mimeType } = await compressImage(file);
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: [
-          {
-            role: 'user',
-            parts: [
-              {
-                inlineData: {
-                  mimeType,
-                  data: base64
-                }
-              },
-              {
-                text: `Identify this electronic device. Reply with a JSON object strictly containing:
-                  {
-                    "name": "Short general name (e.g. TV, Laptop)",
-                    "brand": "Brand if visible, else empty",
-                    "type": "Model/Type if visible, else empty",
-                    "wattage": estimated wattage in numbers
-                  }`
-              }
-            ]
+      // Try primary model, fallback if 404
+      let response;
+      const models = ['gemini-2.5-flash', 'gemini-2.0-flash'];
+      for (const model of models) {
+        try {
+          console.log(`[Scanner] Trying model: ${model}`);
+          response = await callGemini(ai, model, base64, mimeType);
+          console.log(`[Scanner] Success with model: ${model}`);
+          break;
+        } catch (modelError: any) {
+          console.warn(`[Scanner] Model ${model} failed:`, modelError?.status, modelError?.message);
+          if (modelError?.status === 404 && model !== models[models.length - 1]) {
+            continue; // Try next model
           }
-        ],
-        config: {
-          responseMimeType: "application/json",
+          throw modelError; // Re-throw if last model or non-404 error
         }
-      });
+      }
 
-      if (response.text) {
+      if (response && response.text) {
         const result = JSON.parse(response.text);
         setFormData({
           name: result.name || '',

@@ -163,54 +163,58 @@ export default function AddDevice() {
 
     setLoading(true);
     try {
-      // 1. Kompres gambar dulu biar ukurannya kecil dan aman dikirim lewat network
+      // 1. Kompres gambar pake fungsi bawaan lu biar gak kegedean pas dikirim
       const { base64, mimeType } = await compressImage(file);
 
-      // 3. Hit ke URL yang sudah diverifikasi tanpa typo path
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
-
-      const response = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  // PERBAIKAN: Gunakan inlineData (CamelCase) sesuai spek v1beta
-                  inlineData: {
-                    mimeType: mimeType,
-                    data: base64,
-                  },
-                },
-                {
-                  text: `Identify this electronic device. Reply with a JSON object strictly containing: {"name": "Short general name (e.g. TV, Laptop)", "brand": "Brand if visible, else empty", "type": "Model/Type if visible, else empty", "wattage": estimated wattage in numbers}`,
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            responseMimeType: "application/json",
-          },
-        }),
-      });
-
-      // Jika masih gagal, kita log statusnya biar ketahuan
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("API Error Response:", errorText);
-        throw new Error(`Google API Error: ${response.status}`);
+      // 2. Ambil API Key (Sesuaikan nama env-nya)
+      const apiKey =
+        process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      if (!apiKey) {
+        throw new Error("API Key tidak ditemukan.");
       }
 
-      const data = await response.json();
+      // 3. Inisialisasi SDK Google GenAI
+      const ai = new GoogleGenAI({ apiKey });
 
-      // Ambil teks JSON dari response structural Gemini
-      const text = data.candidates[0].content.parts[0].text;
-      const result = JSON.parse(text);
+      // 4. Siapkan prompt & bagian struktur gambar untuk SDK
+      const prompt = `Identify this electronic device. Reply with a JSON object strictly containing: 
+      {
+        "name": "Short general name (e.g. TV, Laptop)", 
+        "brand": "Brand if visible, else empty", 
+        "type": "Model/Type if visible, else empty", 
+        "wattage": estimated wattage in numbers
+      }`;
 
-      // Masukkan data hasil scan ke form
+      // 5. Panggil generateContent lewat SDK
+      const responseResult = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                inlineData: {
+                  data: base64,
+                  mimeType: mimeType,
+                },
+              },
+              {
+                text: prompt,
+              },
+            ],
+          },
+        ],
+        config: {
+          responseMimeType: "application/json",
+        },
+      });
+
+      const text = responseResult.text;
+
+      // Parse text string JSON dari Gemini menjadi object javascript
+      const result = text ? JSON.parse(text) : {};
+
+      // 6. Masukkan data hasil deteksi AI ke dalam form
       setFormData({
         name: result.name || "",
         brand: result.brand || "",
@@ -221,7 +225,7 @@ export default function AddDevice() {
       });
       setStep("MANUAL");
     } catch (error) {
-      console.error("Error scanning device:", error);
+      console.error("Error scanning device via Google SDK:", error);
       alert("Failed to scan device. Please add manually.");
     } finally {
       setLoading(false);

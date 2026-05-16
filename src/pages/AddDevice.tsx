@@ -5,7 +5,6 @@ import { useAuth } from "../contexts/AuthContext";
 import { db } from "../lib/firebase";
 import { collection, addDoc } from "firebase/firestore";
 import { handleFirestoreError, OperationType } from "../lib/errors";
-import { GoogleGenAI } from "@google/genai";
 import { deviceTypesDB } from "../lib/devicesData";
 
 type Step =
@@ -109,12 +108,10 @@ export default function AddDevice() {
         const ctx = canvas.getContext("2d");
         if (!ctx) return reject(new Error("Canvas not supported"));
         ctx.drawImage(img, 0, 0, width, height);
+
+        // Pake full Data URL buat API Groq/OpenAI (contoh: data:image/jpeg;base64,xxxx)
         const dataUrl = canvas.toDataURL("image/jpeg", quality);
-        const base64 = dataUrl.split(",")[1];
-        console.log(
-          `[Scanner] Compressed: ${width}x${height}, ~${Math.round(base64.length / 1024)}KB base64`,
-        );
-        resolve({ base64, mimeType: "image/jpeg" });
+        resolve({ base64: dataUrl, mimeType: "image/jpeg" });
       };
       img.onerror = () => {
         URL.revokeObjectURL(url);
@@ -124,97 +121,73 @@ export default function AddDevice() {
     });
   };
 
-  const callGemini = async (
-    ai: any,
-    model: string,
-    base64: string,
-    mimeType: string,
-  ) => {
-    return await ai.models.generateContent({
-      model,
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              inlineData: { mimeType, data: base64 },
-            },
-            {
-              text: `Identify this electronic device. Reply with a JSON object strictly containing:
-                {
-                  "name": "Short general name (e.g. TV, Laptop)",
-                  "brand": "Brand if visible, else empty",
-                  "type": "Model/Type if visible, else empty",
-                  "wattage": estimated wattage in numbers
-                }`,
-            },
-          ],
-        },
-      ],
-      config: {
-        responseMimeType: "application/json",
-      },
-    });
-  };
-
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];
 
     setLoading(true);
     try {
-      // 1. Kompres gambar pake fungsi bawaan lu biar gak kegedean pas dikirim
-      const { base64, mimeType } = await compressImage(file);
+      const { base64 } = await compressImage(file);
 
-      // 2. Ambil API Key (Sesuaikan nama env-nya)
-      const apiKey =
-        process.env.GEMINI_API_KEY || import.meta.env.VITE_GEMINI_API_KEY;
+      const apiKey = import.meta.env.VITE_GROQ_API_KEY;
       if (!apiKey) {
-        throw new Error("API Key tidak ditemukan.");
+        throw new Error("Groq API Key tidak ditemukan. Cek .env lu.");
       }
 
-      // 3. Inisialisasi SDK Google GenAI
-      const ai = new GoogleGenAI({ apiKey });
-
-      // 4. Siapkan prompt & bagian struktur gambar untuk SDK
+      // Prompt minta balasan raw JSON aja
       const prompt = `Identify this electronic device. Reply with a JSON object strictly containing: 
       {
         "name": "Short general name (e.g. TV, Laptop)", 
         "brand": "Brand if visible, else empty", 
         "type": "Model/Type if visible, else empty", 
         "wattage": estimated wattage in numbers
-      }`;
+      }. Do not wrap the JSON in markdown blocks like \`\`\`json. Return raw JSON only.`;
 
-      // 5. Panggil generateContent lewat SDK
-      const responseResult = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: [
-          {
-            role: "user",
-            parts: [
+      const response = await fetch(
+        "https://api.groq.com/openai/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            // Pake model yang lu dapet dari console Groq
+            model: "meta-llama/llama-4-scout-17b-16e-instruct",
+            response_format: { type: "json_object" },
+            messages: [
               {
-                inlineData: {
-                  data: base64,
-                  mimeType: mimeType,
-                },
-              },
-              {
-                text: prompt,
+                role: "user",
+                content: [
+                  { type: "text", text: prompt },
+                  {
+                    type: "image_url",
+                    image_url: {
+                      url: base64, // Format harus data URL (data:image/jpeg;base64,...)
+                    },
+                  },
+                ],
               },
             ],
-          },
-        ],
-        config: {
-          responseMimeType: "application/json",
+            max_tokens: 1024,
+            temperature: 1,
+          }),
         },
-      });
+      );
 
-      const text = responseResult.text;
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("[Scanner] Groq API Error:", response.status, errText);
+        throw new Error(`API Error: ${response.status}`);
+      }
 
-      // Parse text string JSON dari Gemini menjadi object javascript
+      const data = await response.json();
+      const text = data.choices?.[0]?.message?.content;
+
+      // Parsing JSON
       const result = text ? JSON.parse(text) : {};
 
-      // 6. Masukkan data hasil deteksi AI ke dalam form
+      // Masukkin hasil ke form
       setFormData({
         name: result.name || "",
         brand: result.brand || "",
@@ -225,8 +198,8 @@ export default function AddDevice() {
       });
       setStep("MANUAL");
     } catch (error) {
-      console.error("Error scanning device via Google SDK:", error);
-      alert("Failed to scan device. Please add manually.");
+      console.error("Error scanning device:", error);
+      alert("Gagal scan device. Silakan tambahkan manual.");
     } finally {
       setLoading(false);
     }
@@ -247,7 +220,6 @@ export default function AddDevice() {
     { label: "Per Tahun", kwh: kwhPerYear, cost: kwhPerYear * rate },
   ];
 
-  // For Currency
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("id-ID", {
       minimumFractionDigits: 0,
@@ -292,7 +264,6 @@ export default function AddDevice() {
       {/* STEP: METHOD_SELECT */}
       {step === "METHOD_SELECT" && !loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Scan Device Block */}
           <div className="col-span-1 md:col-span-2 lg:col-span-1 border-2 border-indigo-900 bg-indigo-900 rounded-[2.5rem] p-8 flex flex-col justify-between text-white relative overflow-hidden group">
             <div className="z-10">
               <h3 className="text-xl font-bold mb-2">Scan Device</h3>
@@ -328,7 +299,6 @@ export default function AddDevice() {
                 picker.
               </p>
             </div>
-            {/* Decorative Elements */}
             <div className="absolute top-[-20%] right-[-10%] w-48 h-48 bg-indigo-500 rounded-full blur-3xl opacity-20 pointer-events-none"></div>
           </div>
 

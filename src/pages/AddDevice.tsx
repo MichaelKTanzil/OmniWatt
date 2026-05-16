@@ -121,6 +121,7 @@ export default function AddDevice() {
     });
   };
 
+  // Now Using Groq
   const handleScan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
     const file = e.target.files[0];

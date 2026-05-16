@@ -163,51 +163,54 @@ export default function AddDevice() {
 
     setLoading(true);
     try {
-      // 1. Manfaatin fungsi compressImage yang udah kamu bikin biar size foto gak bengkak
+      // 1. Kompres gambar dulu biar ukurannya kecil dan aman dikirim lewat network
       const { base64, mimeType } = await compressImage(file);
 
-      // 2. Gunakan endpoint model yang stabil. Pakai gemini-1.5-flash karena disupport penuh di v1beta
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            contents: [
-              {
-                parts: [
-                  // PERBAIKAN: Ubah inline_data jadi inlineData, dan mime_type jadi mimeType (wajib camelCase)
-                  {
-                    inlineData: {
-                      mimeType: mimeType,
-                      data: base64,
-                    },
-                  },
-                  {
-                    text: `Identify this electronic device. Reply with a JSON object strictly containing: {"name": "Short general name (e.g. TV, Laptop)", "brand": "Brand if visible, else empty", "type": "Model/Type if visible, else empty", "wattage": estimated wattage in numbers}`,
-                  },
-                ],
-              },
-            ],
-            // PERBAIKAN: Bungkus di dalam objek 'config' atau 'generationConfig' sesuai standar REST API v1beta
-            generationConfig: {
-              responseMimeType: "application/json",
-            },
-          }),
-        },
-      );
+      // 3. Hit ke URL yang sudah diverifikasi tanpa typo path
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  // PERBAIKAN: Gunakan inlineData (CamelCase) sesuai spek v1beta
+                  inlineData: {
+                    mimeType: mimeType,
+                    data: base64,
+                  },
+                },
+                {
+                  text: `Identify this electronic device. Reply with a JSON object strictly containing: {"name": "Short general name (e.g. TV, Laptop)", "brand": "Brand if visible, else empty", "type": "Model/Type if visible, else empty", "wattage": estimated wattage in numbers}`,
+                },
+              ],
+            },
+          ],
+          generationConfig: {
+            responseMimeType: "application/json",
+          },
+        }),
+      });
+
+      // Jika masih gagal, kita log statusnya biar ketahuan
       if (!response.ok) {
-        throw new Error(`API error with status: ${response.status}`);
+        const errorText = await response.text();
+        console.error("API Error Response:", errorText);
+        throw new Error(`Google API Error: ${response.status}`);
       }
 
       const data = await response.json();
 
-      // Ambil teks JSON dari response Gemini
+      // Ambil teks JSON dari response structural Gemini
       const text = data.candidates[0].content.parts[0].text;
       const result = JSON.parse(text);
 
-      // Set data hasil scan ke form
+      // Masukkan data hasil scan ke form
       setFormData({
         name: result.name || "",
         brand: result.brand || "",
